@@ -45,7 +45,6 @@ start_link() ->
 
 init([]) ->
     ets:new(?MODULE, [named_table, public, set]),
-    migrate_couch_stats_collector(whereis(couch_stats_collector)),
     {ok, #st{}}.
 
 handle_call(Msg, _From, State) ->
@@ -83,29 +82,3 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-migrate_couch_stats_collector(undefined) ->
-    ok;
-migrate_couch_stats_collector(CollectorPid) when is_pid(CollectorPid) ->
-    {monitors, Pids} = process_info(CollectorPid, monitors),
-    [migrate_item(Pid) || {process, Pid} <- Pids].
-
-migrate_item(Pid) when is_pid(Pid) ->
-    case erlang:process_info(Pid, dictionary) of
-        {dictionary, D} ->
-            case couch_util:get_value('$initial_call', D) of
-                {Module, init, 1} when Module == couch_file; Module == couch_db_updater ->
-                    Name = case Module of
-                        couch_file ->
-                            [couchdb, open_os_files];
-                        couch_db_updater ->
-                            [couchdb, open_databases]
-                    end,
-                    couch_stats:increment_counter(Name),
-                    Ref = erlang:monitor(process, Pid),
-                    ets:insert(?MODULE, {Ref, Name});
-                _ ->
-                    ok
-            end;
-        _ ->
-            ok
-    end.

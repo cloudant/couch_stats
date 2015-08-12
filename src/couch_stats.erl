@@ -73,36 +73,35 @@ list() ->
 
 -spec increment_counter(any()) -> response().
 increment_counter(Name) ->
-    notify(Name, {inc, 1}).
+    notify_existing_metric(Name, {inc, 1}, counter).
 
 -spec increment_counter(any(), pos_integer()) -> response().
 increment_counter(Name, Value) ->
-    notify(Name, {inc, Value}).
+    notify_existing_metric(Name, {inc, Value}, counter).
 
 -spec decrement_counter(any()) -> response().
 decrement_counter(Name) ->
-    notify(Name, {dec, 1}).
+    notify_existing_metric(Name, {dec, 1}, counter).
 
 -spec decrement_counter(any(), pos_integer()) -> response().
 decrement_counter(Name, Value) ->
-    notify(Name, {dec, Value}).
+    notify_existing_metric(Name, {dec, Value}, counter).
 
 -spec update_histogram(any(), number()) -> response().
 update_histogram(Name, Value) ->
-    notify(Name, Value).
+    notify_existing_metric(Name, Value, histogram).
 
 -spec update_gauge(any(), number()) -> response().
 update_gauge(Name, Value) ->
-    notify(Name, Value).
+    notify_existing_metric(Name, Value, gauge).
 
--spec notify(any(), any()) -> response().
-notify(Name, Op) ->
-    case folsom_metrics:notify(Name, Op) of
-        ok ->
-            ok;
-        _ ->
-            twig:log(notice, "unknown metric: ~p", [Name]),
-            {error, unknown_metric}
+-spec notify_existing_metric(any(), any(), any()) -> response().
+notify_existing_metric(Name, Op, Type) ->
+    try
+        ok = folsom_metrics:notify_existing_metric(Name, Op, Type)
+    catch _:_ ->
+        twig:log(notice, "unknown metric: ~p", [Name]),
+        {error, unknown_metric}
     end.
 
 -spec sample_type(any(), atom()) -> stat().
